@@ -1,4 +1,8 @@
 /***************************************************
+  This is an Arduino Library for the Adafruit 2.2" SPI display.
+  This library works with the Adafruit 2.2" TFT Breakout w/SD card
+  ----> http://www.adafruit.com/products/1480
+ 
   Check out the links above for our tutorials and wiring diagrams
   These displays use SPI to communicate, 4 or 5 pins are required to
   interface (RST is optional)
@@ -55,6 +59,16 @@
 
 #define ILI9340_PTLAR   0x30
 #define ILI9340_MADCTL  0x36
+
+
+#define ILI9340_MADCTL_MY  0x80
+#define ILI9340_MADCTL_MX  0x40
+#define ILI9340_MADCTL_MV  0x20
+#define ILI9340_MADCTL_ML  0x10
+#define ILI9340_MADCTL_RGB 0x00
+#define ILI9340_MADCTL_BGR 0x08
+#define ILI9340_MADCTL_MH  0x04
+
 #define ILI9340_PIXFMT  0x3A
 
 #define ILI9340_FRMCTR1 0xB1

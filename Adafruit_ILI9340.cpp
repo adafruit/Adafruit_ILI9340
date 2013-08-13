@@ -1,5 +1,8 @@
-/*************************************************** 
-
+/***************************************************
+  This is an Arduino Library for the Adafruit 2.2" SPI display.
+  This library works with the Adafruit 2.2" TFT Breakout w/SD card
+  ----> http://www.adafruit.com/products/1480
+ 
   Check out the links above for our tutorials and wiring diagrams
   These displays use SPI to communicate, 4 or 5 pins are required to
   interface (RST is optional)
@@ -20,7 +23,7 @@
 
 // Constructor when using software SPI.  All output pins are configurable.
 Adafruit_ILI9340::Adafruit_ILI9340(uint8_t cs, uint8_t dc, uint8_t mosi,
-				   uint8_t sclk, uint8_t rst, uint8_t miso) {
+				   uint8_t sclk, uint8_t rst, uint8_t miso) : Adafruit_GFX(ILI9340_TFTWIDTH, ILI9340_TFTHEIGHT) {
   _cs   = cs;
   _dc   = dc;
   _mosi  = mosi;
@@ -33,7 +36,7 @@ Adafruit_ILI9340::Adafruit_ILI9340(uint8_t cs, uint8_t dc, uint8_t mosi,
 
 // Constructor when using hardware SPI.  Faster, but must use SPI pins
 // specific to each board type (e.g. 11,13 for Uno, 51,52 for Mega, etc.)
-Adafruit_ILI9340::Adafruit_ILI9340(uint8_t cs, uint8_t dc, uint8_t rst) {
+Adafruit_ILI9340::Adafruit_ILI9340(uint8_t cs, uint8_t dc, uint8_t rst) : Adafruit_GFX(ILI9340_TFTWIDTH, ILI9340_TFTHEIGHT) {
   _cs   = cs;
   _dc   = dc;
   _rst  = rst;
@@ -104,138 +107,6 @@ void Adafruit_ILI9340::writedata(uint8_t c) {
 // formatting -- storage-wise this is hundreds of bytes more compact
 // than the equivalent code.  Companion function follows.
 #define DELAY 0x80
-/*
-PROGMEM static prog_uchar
-  BeginCMD[] = {                  // Initialization commands for 7735B screens
-    18,                       // 18 commands in list:
-    ILI9340_SWRESET,   DELAY,  //  1: Software reset, no args, w/delay
-      50,                     //     50 ms delay
-    ILI9340_SLPOUT ,   DELAY,  //  2: Out of sleep mode, no args, w/delay
-      255,                    //     255 = 500 ms delay
-    ILI9340_COLMOD , 1+DELAY,  //  3: Set color mode, 1 arg + delay:
-      0x05,                   //     16-bit color
-      10,                     //     10 ms delay
-    ILI9340_FRMCTR1, 3+DELAY,  //  4: Frame rate control, 3 args + delay:
-      0x00,                   //     fastest refresh
-      0x06,                   //     6 lines front porch
-      0x03,                   //     3 lines back porch
-      10,                     //     10 ms delay
-    ILI9340_MADCTL , 1      ,  //  5: Memory access ctrl (directions), 1 arg:
-      0x08,                   //     Row addr/col addr, bottom to top refresh
-    ILI9340_DISSET5, 2      ,  //  6: Display settings #5, 2 args, no delay:
-      0x15,                   //     1 clk cycle nonoverlap, 2 cycle gate
-                              //     rise, 3 cycle osc equalize
-      0x02,                   //     Fix on VTL
-    ILI9340_INVCTR , 1      ,  //  7: Display inversion control, 1 arg:
-      0x0,                    //     Line inversion
-    ILI9340_PWCTR1 , 2+DELAY,  //  8: Power control, 2 args + delay:
-      0x02,                   //     GVDD = 4.7V
-      0x70,                   //     1.0uA
-      10,                     //     10 ms delay
-    ILI9340_PWCTR2 , 1      ,  //  9: Power control, 1 arg, no delay:
-      0x05,                   //     VGH = 14.7V, VGL = -7.35V
-    ILI9340_PWCTR3 , 2      ,  // 10: Power control, 2 args, no delay:
-      0x01,                   //     Opamp current small
-      0x02,                   //     Boost frequency
-    ILI9340_VMCTR1 , 2+DELAY,  // 11: Power control, 2 args + delay:
-      0x3C,                   //     VCOMH = 4V
-      0x38,                   //     VCOML = -1.1V
-      10,                     //     10 ms delay
-    ILI9340_PWCTR6 , 2      ,  // 12: Power control, 2 args, no delay:
-      0x11, 0x15,
-    ILI9340_GMCTRP1,16      ,  // 13: Magical unicorn dust, 16 args, no delay:
-      0x09, 0x16, 0x09, 0x20, //     (seriously though, not sure what
-      0x21, 0x1B, 0x13, 0x19, //      these config values represent)
-      0x17, 0x15, 0x1E, 0x2B,
-      0x04, 0x05, 0x02, 0x0E,
-    ILI9340_GMCTRN1,16+DELAY,  // 14: Sparkles and rainbows, 16 args + delay:
-      0x0B, 0x14, 0x08, 0x1E, //     (ditto)
-      0x22, 0x1D, 0x18, 0x1E,
-      0x1B, 0x1A, 0x24, 0x2B,
-      0x06, 0x06, 0x02, 0x0F,
-      10,                     //     10 ms delay
-    ILI9340_CASET  , 4      ,  // 15: Column addr set, 4 args, no delay:
-      0x00, 0x02,             //     XSTART = 2
-      0x00, 0x81,             //     XEND = 129
-    ILI9340_RASET  , 4      ,  // 16: Row addr set, 4 args, no delay:
-      0x00, 0x02,             //     XSTART = 1
-      0x00, 0x81,             //     XEND = 160
-    ILI9340_NORON  ,   DELAY,  // 17: Normal display on, no args, w/delay
-      10,                     //     10 ms delay
-    ILI9340_DISPON ,   DELAY,  // 18: Main screen turn on, no args, w/delay
-      255 },                  //     255 = 500 ms delay
-
-  Rcmd1[] = {                 // Init for 7735R, part 1 (red or green tab)
-    15,                       // 15 commands in list:
-    ILI9340_SWRESET,   DELAY,  //  1: Software reset, 0 args, w/delay
-      150,                    //     150 ms delay
-    ILI9340_SLPOUT ,   DELAY,  //  2: Out of sleep mode, 0 args, w/delay
-      255,                    //     500 ms delay
-    ILI9340_FRMCTR1, 3      ,  //  3: Frame rate ctrl - normal mode, 3 args:
-      0x01, 0x2C, 0x2D,       //     Rate = fosc/(1x2+40) * (LINE+2C+2D)
-    ILI9340_FRMCTR2, 3      ,  //  4: Frame rate control - idle mode, 3 args:
-      0x01, 0x2C, 0x2D,       //     Rate = fosc/(1x2+40) * (LINE+2C+2D)
-    ILI9340_FRMCTR3, 6      ,  //  5: Frame rate ctrl - partial mode, 6 args:
-      0x01, 0x2C, 0x2D,       //     Dot inversion mode
-      0x01, 0x2C, 0x2D,       //     Line inversion mode
-    ILI9340_INVCTR , 1      ,  //  6: Display inversion ctrl, 1 arg, no delay:
-      0x07,                   //     No inversion
-    ILI9340_PWCTR1 , 3      ,  //  7: Power control, 3 args, no delay:
-      0xA2,
-      0x02,                   //     -4.6V
-      0x84,                   //     AUTO mode
-    ILI9340_PWCTR2 , 1      ,  //  8: Power control, 1 arg, no delay:
-      0xC5,                   //     VGH25 = 2.4C VGSEL = -10 VGH = 3 * AVDD
-    ILI9340_PWCTR3 , 2      ,  //  9: Power control, 2 args, no delay:
-      0x0A,                   //     Opamp current small
-      0x00,                   //     Boost frequency
-    ILI9340_PWCTR4 , 2      ,  // 10: Power control, 2 args, no delay:
-      0x8A,                   //     BCLK/2, Opamp current small & Medium low
-      0x2A,  
-    ILI9340_PWCTR5 , 2      ,  // 11: Power control, 2 args, no delay:
-      0x8A, 0xEE,
-    ILI9340_VMCTR1 , 1      ,  // 12: Power control, 1 arg, no delay:
-      0x0E,
-    ILI9340_INVOFF , 0      ,  // 13: Don't invert display, no args, no delay
-    ILI9340_MADCTL , 1      ,  // 14: Memory access control (directions), 1 arg:
-      0xC8,                   //     row addr/col addr, bottom to top refresh
-    ILI9340_COLMOD , 1      ,  // 15: set color mode, 1 arg, no delay:
-      0x05 },                 //     16-bit color
-
-  Rcmd2green[] = {            // Init for 7735R, part 2 (green tab only)
-    2,                        //  2 commands in list:
-    ILI9340_CASET  , 4      ,  //  1: Column addr set, 4 args, no delay:
-      0x00, 0x02,             //     XSTART = 0
-      0x00, 0x7F+0x02,        //     XEND = 127
-    ILI9340_RASET  , 4      ,  //  2: Row addr set, 4 args, no delay:
-      0x00, 0x01,             //     XSTART = 0
-      0x00, 0x9F+0x01 },      //     XEND = 159
-  Rcmd2red[] = {              // Init for 7735R, part 2 (red tab only)
-    2,                        //  2 commands in list:
-    ILI9340_CASET  , 4      ,  //  1: Column addr set, 4 args, no delay:
-      0x00, 0x00,             //     XSTART = 0
-      0x00, 0x7F,             //     XEND = 127
-    ILI9340_RASET  , 4      ,  //  2: Row addr set, 4 args, no delay:
-      0x00, 0x00,             //     XSTART = 0
-      0x00, 0x9F },           //     XEND = 159
-
-  Rcmd3[] = {                 // Init for 7735R, part 3 (red or green tab)
-    4,                        //  4 commands in list:
-    ILI9340_GMCTRP1, 16      , //  1: Magical unicorn dust, 16 args, no delay:
-      0x02, 0x1c, 0x07, 0x12,
-      0x37, 0x32, 0x29, 0x2d,
-      0x29, 0x25, 0x2B, 0x39,
-      0x00, 0x01, 0x03, 0x10,
-    ILI9340_GMCTRN1, 16      , //  2: Sparkles and rainbows, 16 args, no delay:
-      0x03, 0x1d, 0x07, 0x06,
-      0x2E, 0x2C, 0x29, 0x2D,
-      0x2E, 0x2E, 0x37, 0x3F,
-      0x00, 0x00, 0x02, 0x10,
-    ILI9340_NORON  ,    DELAY, //  3: Normal display on, no args, w/delay
-      10,                     //     10 ms delay
-    ILI9340_DISPON ,    DELAY, //  4: Main screen turn on, no args w/delay
-      100 };                  //     100 ms delay
-*/
 
 // Companion code to the above tables.  Reads and issues
 // a series of LCD commands stored in PROGMEM byte array.
@@ -264,9 +135,6 @@ void Adafruit_ILI9340::commandList(uint8_t *addr) {
 
 
 void Adafruit_ILI9340::begin(void) {
-
-  constructor(ILI9340_TFTWIDTH, ILI9340_TFTHEIGHT);
-
   pinMode(_rst, OUTPUT);
   digitalWrite(_rst, LOW);
   pinMode(_dc, OUTPUT);
@@ -302,6 +170,7 @@ void Adafruit_ILI9340::begin(void) {
   digitalWrite(_rst, HIGH);
   delay(150);
 
+  /*
   uint8_t x = readcommand8(ILI9340_RDMODE);
   Serial.print("\nDisplay Power Mode: 0x"); Serial.println(x, HEX);
   x = readcommand8(ILI9340_RDMADCTL);
@@ -312,6 +181,7 @@ void Adafruit_ILI9340::begin(void) {
   Serial.print("\nImage Format: 0x"); Serial.println(x, HEX);
   x = readcommand8(ILI9340_RDSELFDIAG);
   Serial.print("\nSelf Diagnostic: 0x"); Serial.println(x, HEX);
+  */
 
   //if(cmdList) commandList(cmdList);
   
@@ -364,7 +234,7 @@ void Adafruit_ILI9340::begin(void) {
   writedata(0x86);  //--
  
   writecommand(ILI9340_MADCTL);    // Memory Access Control 
-  writedata(0x48);
+  writedata(ILI9340_MADCTL_MX | ILI9340_MADCTL_BGR);
 
   writecommand(ILI9340_PIXFMT);    
   writedata(0x55); 
@@ -562,36 +432,28 @@ uint16_t Adafruit_ILI9340::Color565(uint8_t r, uint8_t g, uint8_t b) {
 }
 
 
-#define MADCTL_MY  0x80
-#define MADCTL_MX  0x40
-#define MADCTL_MV  0x20
-#define MADCTL_ML  0x10
-#define MADCTL_RGB 0x00
-#define MADCTL_BGR 0x08
-#define MADCTL_MH  0x04
-
 void Adafruit_ILI9340::setRotation(uint8_t m) {
 
   writecommand(ILI9340_MADCTL);
   rotation = m % 4; // can't be higher than 3
   switch (rotation) {
    case 0:
-     writedata(MADCTL_MX | MADCTL_MY | MADCTL_RGB);
+     writedata(ILI9340_MADCTL_MX | ILI9340_MADCTL_BGR);
      _width  = ILI9340_TFTWIDTH;
      _height = ILI9340_TFTHEIGHT;
      break;
    case 1:
-     writedata(MADCTL_MY | MADCTL_MV | MADCTL_RGB);
+     writedata(ILI9340_MADCTL_MV | ILI9340_MADCTL_BGR);
      _width  = ILI9340_TFTHEIGHT;
      _height = ILI9340_TFTWIDTH;
      break;
   case 2:
-    writedata(MADCTL_RGB);
+    writedata(ILI9340_MADCTL_MY | ILI9340_MADCTL_BGR);
      _width  = ILI9340_TFTWIDTH;
      _height = ILI9340_TFTHEIGHT;
     break;
    case 3:
-     writedata(MADCTL_MX | MADCTL_MV | MADCTL_RGB);
+     writedata(ILI9340_MADCTL_MV | ILI9340_MADCTL_MY | ILI9340_MADCTL_MX | ILI9340_MADCTL_BGR);
      _width  = ILI9340_TFTHEIGHT;
      _height = ILI9340_TFTWIDTH;
      break;
