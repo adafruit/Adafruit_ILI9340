@@ -24,7 +24,17 @@
  #include "WProgram.h"
 #endif
 #include <Adafruit_GFX.h>
-#include <avr/pgmspace.h>
+
+#if defined(__SAM3X8E__)
+#include <include/pio.h>
+  #define PROGMEM
+  #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
+  #define pgm_read_word(addr) (*(const unsigned short *)(addr))
+  typedef unsigned char prog_uchar;
+#endif
+#ifdef __AVR__
+  #include <avr/pgmspace.h>
+#endif
 
 
 #define ILI9340_TFTWIDTH  240
@@ -150,9 +160,17 @@ class Adafruit_ILI9340 : public Adafruit_GFX {
 
 
   boolean  hwSPI;
+#ifdef __AVR__  
   volatile uint8_t *mosiport, *clkport, *dcport, *rsport, *csport;
   uint8_t  _cs, _dc, _rst, _mosi, _miso, _sclk,
            mosipinmask, clkpinmask, cspinmask, dcpinmask;
+#endif //  #ifdef __AVR__
+  
+#if defined(__SAM3X8E__)
+  Pio *mosiport, *clkport, *dcport, *rsport, *csport;
+  uint32_t  _cs, _dc, _rst, _mosi, _miso, _sclk,
+            mosipinmask, clkpinmask, cspinmask, dcpinmask;
+#endif //  #if defined(__SAM3X8E__)
 };
 
 #endif

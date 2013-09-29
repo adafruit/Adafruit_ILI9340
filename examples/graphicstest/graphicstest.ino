@@ -18,6 +18,11 @@
 #include "Adafruit_GFX.h"
 #include "Adafruit_ILI9340.h"
 
+#if defined(__SAM3X8E__)
+    #undef __FlashStringHelper::F(string_literal)
+    #define F(string_literal) string_literal
+#endif
+
 // These are the pins used for the UNO
 // for Due/Mega/Leonardo use the hardware SPI pins (which are different)
 #define _sclk 13
