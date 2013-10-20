@@ -168,8 +168,8 @@ void Adafruit_ILI9340::begin(void) {
 #endif
 #if defined(__arm__) && defined(CORE_TEENSY)
   mosiport = &_mosi;
-  clkport = &_clk;
-  rsport = &_rs;
+  clkport = &_sclk;
+  rsport = &_rst;
   csport    = &_cs;
   dcport    = &_dc;
 #endif
@@ -270,7 +270,7 @@ void Adafruit_ILI9340::begin(void) {
   writedata(0x10);   //SAP[2:0];BT[3:0] 
  
   writecommand(ILI9340_VMCTR1);    //VCM control 
-  writedata(0x3e); //对比度调节
+  writedata(0x3e); //锟皆比度碉拷锟斤拷
   writedata(0x28); 
   
   writecommand(ILI9340_VMCTR2);    //VCM control2 
