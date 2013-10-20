@@ -25,12 +25,17 @@
 #include <include/pio.h>
   #define SET_BIT(port, bitMask) (port)->PIO_SODR |= (bitMask)
   #define CLEAR_BIT(port, bitMask) (port)->PIO_CODR |= (bitMask)
+  #define USE_SPI_LIBRARY
 #endif
 #ifdef __AVR__
   #define SET_BIT(port, bitMask) *(port) |= (bitMask)
   #define CLEAR_BIT(port, bitMask) *(port) &= ~(bitMask)
 #endif
-
+#if defined(__arm__) && defined(CORE_TEENSY)
+  #define USE_SPI_LIBRARY
+  #define SET_BIT(port, bitMask) digitalWrite(*(port), HIGH);
+  #define CLEAR_BIT(port, bitMask) digitalWrite(*(port), LOW);
+#endif
 
 // Constructor when using software SPI.  All output pins are configurable.
 Adafruit_ILI9340::Adafruit_ILI9340(uint8_t cs, uint8_t dc, uint8_t mosi,
@@ -64,7 +69,7 @@ void Adafruit_ILI9340::spiwrite(uint8_t c) {
     SPDR = c;
     while(!(SPSR & _BV(SPIF)));
 #endif
-#if defined(__SAM3X8E__)
+#if defined(USE_SPI_LIBRARY)
     SPI.transfer(c);
 #endif
   } else {
@@ -160,6 +165,13 @@ void Adafruit_ILI9340::begin(void) {
 #if defined(__SAM3X8E__)
   csport    = digitalPinToPort(_cs);
   dcport    = digitalPinToPort(_dc);
+#endif
+#if defined(__arm__) && defined(CORE_TEENSY)
+  mosiport = &_mosi;
+  clkport = &_clk;
+  rsport = &_rs;
+  csport    = &_cs;
+  dcport    = &_dc;
 #endif
   cspinmask = digitalPinToBitMask(_cs);
   dcpinmask = digitalPinToBitMask(_dc);
@@ -509,7 +521,7 @@ uint8_t Adafruit_ILI9340::spiread(void) {
     while(!(SPSR & _BV(SPIF)));
     r = SPDR;
 #endif
-#if defined(__SAM3X8E__)
+#if defined(USE_SPI_LIBRARY)
     r = SPI.transfer(0x00);
 #endif
   } else {
