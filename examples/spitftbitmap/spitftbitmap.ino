@@ -28,8 +28,8 @@
 // Hardware SPI pins are specific to the Arduino board type and
 // cannot be remapped to alternate pins.  For Arduino Uno,
 // Duemilanove, etc., pin 11 = MOSI, pin 12 = MISO, pin 13 = SCK.
-#define TFT_RST 9
-#define TFT_DC 8
+#define TFT_RST 8
+#define TFT_DC 9
 #define TFT_CS 10
 #define SD_CS 4
 
