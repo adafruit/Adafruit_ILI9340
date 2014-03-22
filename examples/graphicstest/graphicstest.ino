@@ -39,6 +39,8 @@ Adafruit_ILI9340 tft = Adafruit_ILI9340(_cs, _dc, _rst);
 
 void setup() {
   Serial.begin(9600);
+  while (!Serial);
+  
   Serial.println("Adafruit 2.2\" SPI TFT Test!"); 
  
   tft.begin();
