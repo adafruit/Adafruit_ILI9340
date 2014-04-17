@@ -152,6 +152,18 @@ void Adafruit_ILI9340::commandList(uint8_t *addr) {
   }
 }
 
+void Adafruit_ILI9340::setSPI() {
+  if(hwSPI) { // Using hardware SPI
+#ifdef __AVR__
+    SPI.setClockDivider(SPI_CLOCK_DIV2); // 8 MHz (full! speed!)
+#endif
+#if defined(__SAM3X8E__)
+    SPI.setClockDivider(11); // 85MHz / 11 = 7.6 MHz (full! speed!)
+#endif
+    SPI.setBitOrder(MSBFIRST);
+    SPI.setDataMode(SPI_MODE0);
+  }
+}
 
 void Adafruit_ILI9340::begin(void) {
   pinMode(_rst, OUTPUT);
@@ -178,14 +190,7 @@ void Adafruit_ILI9340::begin(void) {
 
   if(hwSPI) { // Using hardware SPI
     SPI.begin();
-#ifdef __AVR__
-    SPI.setClockDivider(SPI_CLOCK_DIV2); // 8 MHz (full! speed!)
-#endif
-#if defined(__SAM3X8E__)
-    SPI.setClockDivider(11); // 85MHz / 11 = 7.6 MHz (full! speed!)
-#endif    SPI.setBitOrder(MSBFIRST);
-    SPI.setBitOrder(MSBFIRST);
-    SPI.setDataMode(SPI_MODE0);
+    setSPI();
   } else {
     pinMode(_sclk, OUTPUT);
     pinMode(_mosi, OUTPUT);
@@ -361,6 +366,7 @@ void Adafruit_ILI9340::pushColor(uint16_t color) {
   SET_BIT(dcport, dcpinmask);
   //digitalWrite(_cs, LOW);
   CLEAR_BIT(csport, cspinmask);
+  setSPI();
 
   spiwrite(color >> 8);
   spiwrite(color);
@@ -373,6 +379,7 @@ void Adafruit_ILI9340::drawPixel(int16_t x, int16_t y, uint16_t color) {
 
   if((x < 0) ||(x >= _width) || (y < 0) || (y >= _height)) return;
 
+  setSPI();
   setAddrWindow(x,y,x+1,y+1);
 
   //digitalWrite(_dc, HIGH);
@@ -387,6 +394,90 @@ void Adafruit_ILI9340::drawPixel(int16_t x, int16_t y, uint16_t color) {
   //digitalWrite(_cs, HIGH);
 }
 
+void Adafruit_ILI9340::drawFastBitmap(int16_t x, int16_t y,
+                                      const uint8_t *bitmap, int16_t w, int16_t h,
+                                      uint16_t color,uint16_t bg) {
+    
+  int16_t i, j, byteWidth = (w + 7) / 8;
+
+  setSPI();
+  setAddrWindow(x,y,x+w-1,y+h-1);
+  SET_BIT(dcport, dcpinmask);
+  CLEAR_BIT(csport, cspinmask);
+  for(j=0; j<h; j++) {
+    for(i=0; i<w; i++ ) {
+      if(pgm_read_byte(bitmap + j * byteWidth + i / 8) & (128 >> (i & 7))) {
+        spiwrite(color >> 8);
+        spiwrite(color);
+      }
+      else {
+        spiwrite(bg >> 8);
+        spiwrite(bg);
+      }
+    }
+  }
+  SET_BIT(csport, cspinmask);
+}
+
+void Adafruit_ILI9340::drawFastChar(int16_t x, int16_t y, unsigned char c,uint16_t color, uint16_t bg, uint8_t size) {
+    if (color == bg) {
+        drawChar(x,y,c,color,bg,size);
+        return;
+    }
+    if (c < fontStart || c > fontStart+fontLength) {
+        c = 0;
+    }
+    else {
+        c -= fontStart;
+    }
+    if((x >= _width)            || // Clip right
+       (y >= _height)           || // Clip bottom
+       ((x + fontWidth * size - 1) < 0) || // Clip left
+       ((y + fontHeight * size - 1) < 0))   // Clip top
+        return;
+
+    setSPI();
+    setAddrWindow(x,y,x+(fontWidth)*size-1,y+(fontHeight)*size-1);
+    SET_BIT(dcport, dcpinmask);
+    CLEAR_BIT(csport, cspinmask);
+    uint8_t color_hi=color>>8,color_lo=color,bg_hi=bg>>8,bg_lo=bg;
+    uint8_t bitCount=0,bitCountStart;
+    uint8_t line,lineStart;
+    int fontIndex = (c*(fontWidth*fontHeight)/8)+4,fontIndexStart;
+    for (uint8_t i=0; i<(fontHeight); i++ ) {
+        for (uint8_t s=0;s<size;s++) {
+            for (uint8_t j=0; j<fontWidth; j++) {
+                if (s==0 && j==0) { // save position so we can repeat if size > 1
+                    bitCountStart = bitCount;
+                    lineStart = line;
+                    fontIndexStart = fontIndex;
+                }
+                else if (j==0) { // repeat
+                    bitCount = bitCountStart;
+                    fontIndex = fontIndexStart;
+                    line = lineStart;
+                }
+                if (bitCount++%8 == 0) {
+                    line = pgm_read_byte(fontData+fontIndex++);
+                }
+                if (line & 0x80) {
+                    for (uint8_t k=0;k<size;k++) {
+                        spiwrite(color_hi);
+                        spiwrite(color_lo);
+                    }
+                }
+                else {
+                    for (uint8_t k=0;k<size;k++) {
+                        spiwrite(bg_hi);
+                        spiwrite(bg_lo);
+                    }
+                }
+                line <<= 1;
+            }
+        }
+    }
+    SET_BIT(csport, cspinmask);
+}
 
 void Adafruit_ILI9340::drawFastVLine(int16_t x, int16_t y, int16_t h,
  uint16_t color) {
@@ -396,7 +487,7 @@ void Adafruit_ILI9340::drawFastVLine(int16_t x, int16_t y, int16_t h,
 
   if((y+h-1) >= _height) 
     h = _height-y;
-
+  setSPI();
   setAddrWindow(x, y, x, y+h-1);
 
   uint8_t hi = color >> 8, lo = color;
@@ -414,13 +505,13 @@ void Adafruit_ILI9340::drawFastVLine(int16_t x, int16_t y, int16_t h,
   //digitalWrite(_cs, HIGH);
 }
 
-
 void Adafruit_ILI9340::drawFastHLine(int16_t x, int16_t y, int16_t w,
   uint16_t color) {
 
   // Rudimentary clipping
   if((x >= _width) || (y >= _height)) return;
   if((x+w-1) >= _width)  w = _width-x;
+  setSPI();
   setAddrWindow(x, y, x+w-1, y);
 
   uint8_t hi = color >> 8, lo = color;
@@ -449,6 +540,7 @@ void Adafruit_ILI9340::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
   if((x + w - 1) >= _width)  w = _width  - x;
   if((y + h - 1) >= _height) h = _height - y;
 
+  setSPI();
   setAddrWindow(x, y, x+w-1, y+h-1);
 
   uint8_t hi = color >> 8, lo = color;
@@ -477,6 +569,7 @@ uint16_t Adafruit_ILI9340::Color565(uint8_t r, uint8_t g, uint8_t b) {
 
 void Adafruit_ILI9340::setRotation(uint8_t m) {
 
+  setSPI();
   writecommand(ILI9340_MADCTL);
   rotation = m % 4; // can't be higher than 3
   switch (rotation) {
@@ -505,6 +598,7 @@ void Adafruit_ILI9340::setRotation(uint8_t m) {
 
 
 void Adafruit_ILI9340::invertDisplay(boolean i) {
+  setSPI();
   writecommand(i ? ILI9340_INVON : ILI9340_INVOFF);
 }
 

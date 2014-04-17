@@ -136,7 +136,9 @@ class Adafruit_ILI9340 : public Adafruit_GFX {
            fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
              uint16_t color),
            setRotation(uint8_t r),
-           invertDisplay(boolean i);
+           invertDisplay(boolean i),
+           drawFastChar(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t size),
+           drawFastBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color, uint16_t bg);
   uint16_t Color565(uint8_t r, uint8_t g, uint8_t b);
 
   /* These are not for current use, 8-bit protocol only! */
@@ -151,7 +153,8 @@ class Adafruit_ILI9340 : public Adafruit_GFX {
   void     spiwrite(uint8_t),
     writecommand(uint8_t c),
     writedata(uint8_t d),
-    commandList(uint8_t *addr);
+    commandList(uint8_t *addr),
+    setSPI();
   uint8_t  spiread(void);
 
  private:
