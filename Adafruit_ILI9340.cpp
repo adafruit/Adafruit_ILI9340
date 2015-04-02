@@ -183,7 +183,7 @@ void Adafruit_ILI9340::begin(void) {
 #endif
 #if defined(__SAM3X8E__)
     SPI.setClockDivider(11); // 85MHz / 11 = 7.6 MHz (full! speed!)
-#endif    SPI.setBitOrder(MSBFIRST);
+#endif
     SPI.setBitOrder(MSBFIRST);
     SPI.setDataMode(SPI_MODE0);
   } else {
