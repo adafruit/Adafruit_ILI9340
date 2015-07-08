@@ -26,14 +26,15 @@
 #include <Adafruit_GFX.h>
 
 #if defined(__SAM3X8E__)
-#include <include/pio.h>
+  #include <include/pio.h>
   #define PROGMEM
   #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
   #define pgm_read_word(addr) (*(const unsigned short *)(addr))
   typedef unsigned char prog_uchar;
-#endif
-#ifdef __AVR__
+#elif __AVR
   #include <avr/pgmspace.h>
+#elif defined(ESP8266)
+  #include <pgmspace.h>
 #endif
 
 
