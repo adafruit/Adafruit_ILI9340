@@ -25,6 +25,11 @@
 #include "pins_arduino.h"
 #include "wiring_private.h"
 #include <SPI.h>
+#include <util/atomic.h> // Added on 2016.06.14 by Pedro Albuquerque to avoid interrupts during SPI access by Moteino
+
+
+#define ATOMIC_BLOCK_START     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+#define ATOMIC_BLOCK_END }
 
 #if defined(__SAM3X8E__)
 #include <include/pio.h>
@@ -68,7 +73,6 @@ Adafruit_ILI9340::Adafruit_ILI9340(uint8_t cs, uint8_t dc, uint8_t rst) : Adafru
 void Adafruit_ILI9340::spiwrite(uint8_t c) {
 
   //Serial.print("0x"); Serial.print(c, HEX); Serial.print(", ");
-
   if (hwSPI) {
 #ifdef __AVR__
     SPDR = c;
@@ -97,6 +101,9 @@ void Adafruit_ILI9340::spiwrite(uint8_t c) {
 
 
 void Adafruit_ILI9340::writecommand(uint8_t c) {
+
+  ATOMIC_BLOCK_START;
+
   CLEAR_BIT(dcport, dcpinmask);
   //digitalWrite(_dc, LOW);
   CLEAR_BIT(clkport, clkpinmask);
@@ -108,10 +115,15 @@ void Adafruit_ILI9340::writecommand(uint8_t c) {
 
   SET_BIT(csport, cspinmask);
   //digitalWrite(_cs, HIGH);
+  ATOMIC_BLOCK_END;
+
 }
 
 
 void Adafruit_ILI9340::writedata(uint8_t c) {
+
+  ATOMIC_BLOCK_START;
+	
   SET_BIT(dcport,  dcpinmask);
   //digitalWrite(_dc, HIGH);
   CLEAR_BIT(clkport, clkpinmask);
@@ -123,7 +135,9 @@ void Adafruit_ILI9340::writedata(uint8_t c) {
 
   //digitalWrite(_cs, HIGH);
   SET_BIT(csport, cspinmask);
-} 
+
+  ATOMIC_BLOCK_END;
+}
 
 // Rather than a bazillion writecommand() and writedata() calls, screen
 // initialization commands and arguments are organized in these tables
@@ -457,7 +471,8 @@ void Adafruit_ILI9340::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
   setAddrWindow(x, y, x+w-1, y+h-1);
 
   uint8_t hi = color >> 8, lo = color;
-
+  
+  ATOMIC_BLOCK_START;
   SET_BIT(dcport, dcpinmask);
   //digitalWrite(_dc, HIGH);
   CLEAR_BIT(csport, cspinmask);
@@ -471,6 +486,7 @@ void Adafruit_ILI9340::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
   }
   //digitalWrite(_cs, HIGH);
   SET_BIT(csport, cspinmask);
+  ATOMIC_BLOCK_END;
 }
 
 
@@ -520,6 +536,7 @@ void Adafruit_ILI9340::invertDisplay(boolean i) {
 uint8_t Adafruit_ILI9340::spiread(void) {
   uint8_t r = 0;
 
+
   if (hwSPI) {
 #ifdef __AVR__
     SPDR = 0x00;
@@ -540,21 +557,27 @@ uint8_t Adafruit_ILI9340::spiread(void) {
     }
   }
   //Serial.print("read: 0x"); Serial.print(r, HEX);
-  
   return r;
 }
 
  uint8_t Adafruit_ILI9340::readdata(void) {
+   ATOMIC_BLOCK_START;
+
    digitalWrite(_dc, HIGH);
    digitalWrite(_cs, LOW);
    uint8_t r = spiread();
    digitalWrite(_cs, HIGH);
-   
+
    return r;
-}
+   ATOMIC_BLOCK_END;
+
+ }
  
 
  uint8_t Adafruit_ILI9340::readcommand8(uint8_t c) {
+
+   ATOMIC_BLOCK_START;
+
    digitalWrite(_dc, LOW);
    digitalWrite(_sclk, LOW);
    digitalWrite(_cs, LOW);
@@ -563,7 +586,10 @@ uint8_t Adafruit_ILI9340::spiread(void) {
    digitalWrite(_dc, HIGH);
    uint8_t r = spiread();
    digitalWrite(_cs, HIGH);
+
    return r;
+   ATOMIC_BLOCK_END;
+
 }
 
 
