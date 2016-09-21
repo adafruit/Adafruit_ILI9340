@@ -38,6 +38,13 @@ Adafruit_ILI9340 tft = Adafruit_ILI9340(TFT_CS, TFT_DC, TFT_RST);
 void setup(void) {
   Serial.begin(9600);
 
+  pinMode(SD_CS, OUTPUT);
+  digitalWrite(SD_CS, HIGH);
+  
+  tft.begin();
+  tft.fillScreen(ILI9340_BLUE);
+  
+
   Serial.print("Initializing SD card...");
   if (!SD.begin(SD_CS)) {
     Serial.println("failed!");
@@ -45,9 +52,6 @@ void setup(void) {
   }
   Serial.println("OK!");
 
-  tft.begin();
-  tft.fillScreen(ILI9340_BLUE);
-  
 
   bmpDraw("woof.bmp", 0, 0);
 }
