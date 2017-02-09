@@ -36,7 +36,7 @@
   #define SET_BIT(port, bitMask) *(port) |= (bitMask)
   #define CLEAR_BIT(port, bitMask) *(port) &= ~(bitMask)
 #endif
-#if defined(__arm__) && defined(CORE_TEENSY)
+#if (defined(__arm__) && defined(CORE_TEENSY)) || defined(ESP8266)
   #define USE_SPI_LIBRARY
   #define SET_BIT(port, bitMask) digitalWrite(*(port), HIGH);
   #define CLEAR_BIT(port, bitMask) digitalWrite(*(port), LOW);
@@ -171,7 +171,7 @@ void Adafruit_ILI9340::begin(void) {
   csport    = digitalPinToPort(_cs);
   dcport    = digitalPinToPort(_dc);
 #endif
-#if defined(__arm__) && defined(CORE_TEENSY)
+#if (defined(__arm__) && defined(CORE_TEENSY)) || defined(ESP8266)
   mosiport = &_mosi;
   clkport = &_sclk;
   rsport = &_rst;
@@ -183,7 +183,7 @@ void Adafruit_ILI9340::begin(void) {
 
   if(hwSPI) { // Using hardware SPI
     SPI.begin();
-#ifdef __AVR__
+#if defined(__AVR__) || defined(ESP8266)
     SPI.setClockDivider(SPI_CLOCK_DIV2); // 8 MHz (full! speed!)
 #endif
 #if defined(__SAM3X8E__)
