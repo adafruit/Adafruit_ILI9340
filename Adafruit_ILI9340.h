@@ -126,6 +126,7 @@ class Adafruit_ILI9340 : public Adafruit_GFX {
   Adafruit_ILI9340(uint8_t CS, uint8_t RS, uint8_t MOSI, uint8_t SCLK,
 		   uint8_t RST, uint8_t MISO);
   Adafruit_ILI9340(uint8_t CS, uint8_t RS, uint8_t RST);
+	bool m_tiny;
 
   void     begin(void),
            setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1),
@@ -136,6 +137,8 @@ class Adafruit_ILI9340 : public Adafruit_GFX {
            drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color),
            fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
              uint16_t color),
+           drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h,
+	     uint16_t color, uint16_t bgcolor),
            setRotation(uint8_t r),
            invertDisplay(boolean i);
   uint16_t Color565(uint8_t r, uint8_t g, uint8_t b);
@@ -155,6 +158,13 @@ class Adafruit_ILI9340 : public Adafruit_GFX {
     commandList(uint8_t *addr);
   uint8_t  spiread(void);
 
+#if ARDUINO < 100
+  virtual size_t write(uint8_t);
+#else
+  virtual void   write(uint8_t);
+#endif
+  void drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color,
+      uint16_t bg, uint8_t size);
  private:
   uint8_t  tabcolor;
 

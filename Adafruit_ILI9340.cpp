@@ -52,6 +52,7 @@ Adafruit_ILI9340::Adafruit_ILI9340(uint8_t cs, uint8_t dc, uint8_t mosi,
   _sclk = sclk;
   _rst  = rst;
   hwSPI = false;
+  m_tiny = true;
 }
 
 
@@ -63,6 +64,7 @@ Adafruit_ILI9340::Adafruit_ILI9340(uint8_t cs, uint8_t dc, uint8_t rst) : Adafru
   _rst  = rst;
   hwSPI = true;
   _mosi  = _sclk = 0;
+  m_tiny = true;
 }
 
 void Adafruit_ILI9340::spiwrite(uint8_t c) {
@@ -473,6 +475,47 @@ void Adafruit_ILI9340::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
   SET_BIT(csport, cspinmask);
 }
 
+void Adafruit_ILI9340::drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h,
+			      uint16_t color, uint16_t bgcolor) {
+
+  // rudimentary clipping (drawChar w/big text requires this)
+  if((x >= _width) || (y >= _height)) return;
+  if((x + w - 1) >= _width)  w = _width  - x;
+  if((y + h - 1) >= _height) h = _height - y;
+
+  setAddrWindow(x, y, x+w-1, y+h-1);
+
+  uint8_t hi = color >> 8, lo = color;
+  uint8_t hiBg = bgcolor >> 8, loBg = bgcolor;
+
+  SET_BIT(dcport, dcpinmask);
+  //digitalWrite(_dc, HIGH);
+  CLEAR_BIT(csport, cspinmask);
+  //digitalWrite(_cs, LOW);
+
+  int16_t i, j, byteWidth = (w + 7) / 8;
+
+  unsigned char mask = 128;
+  char oneB = *(bitmap++);
+  for(j=0; j<h; j++) {
+	for(i=0; i<w; i++ ) {
+		if(oneB & mask) {
+			spiwrite(hi);
+			spiwrite(lo);
+		} else {
+			spiwrite(hiBg);
+			spiwrite(loBg);
+		}
+		mask >>= 1;
+		if(!mask) {
+			mask = 128;
+			oneB = *(bitmap++);
+		}
+	}
+  }
+  //digitalWrite(_cs, HIGH);
+  SET_BIT(csport, cspinmask);
+}
 
 // Pass 8-bit (each) R,G,B, get back 16-bit packed color
 uint16_t Adafruit_ILI9340::Color565(uint8_t r, uint8_t g, uint8_t b) {
@@ -612,3 +655,133 @@ uint8_t Adafruit_ILI9340::spiread(void) {
  }
  
  */
+
+#if ARDUINO < 100
+size_t _ILI9340::write(uint8_t c) {
+#else
+void _ILI9340::write(uint8_t c) {
+#endif
+	int charWidth;
+  if (c == '\n') {
+    cursor_y += textsize*9-2;
+    cursor_x = 0;
+  } else if (c == '\r') {
+    // skip em
+  } else {
+	charWidth = cursor_x;
+    drawChar(cursor_x + corner_x, cursor_y + corner_y, c, textcolor, textbgcolor, textsize);
+	if(!m_tiny) {
+		cursor_x += textsize*6;
+		if(!textsize) cursor_x += 6;
+	} else charWidth = cursor_x - charWidth;
+    if (wrap && (cursor_x > (_width - textsize*6))) {
+      cursor_y += textsize*9-2;
+      cursor_x = 0;
+    }
+  }
+	if(!m_tiny)
+		return 1;
+	else return charWidth;
+}
+
+// draw a character
+#include "glcdfont.c"
+void _ILI9340::drawChar(int16_t x, int16_t y, unsigned char c,
+			    uint16_t color, uint16_t bg, uint8_t size) {
+
+  if((x >= _width)            || // Clip right
+     (y >= _height)           || // Clip bottom
+     ((x + 8 * size - 1) < 0) || // Clip left
+     ((y + 12 * size - 1) < 0))  // Clip top
+    return;
+
+	c-='!';
+	const unsigned char* begin = m_font;
+	unsigned char chars = pgm_read_byte(begin+2), width = pgm_read_byte(begin+3), height = pgm_read_byte(begin+4);
+	if(c==255) {
+		fillRect(x, y, width*8, height, bg);
+		if(m_tiny) cursor_x += width*8*5/8;
+		return;
+	}
+	const unsigned char* rowTabIdx = begin + 5;
+	const unsigned char* rowCollTabIdx = begin + 5 + ((chars*height+7)>>3); // 423 pro 94*36/8
+	const unsigned char* charDataTabIdx = rowCollTabIdx + pgm_read_byte(begin+1) + (pgm_read_byte(begin)<<8);
+	int skipRows = c*height;
+	unsigned char byteRows, byteColls = pgm_read_byte(rowCollTabIdx);
+	rowCollTabIdx++;
+	unsigned char rowTabMask;
+	unsigned char rowCollTabMask = 128;
+	rowTabMask = 128;
+	byteRows = pgm_read_byte(rowTabIdx++);
+	while(skipRows--) {
+		if(byteRows & rowTabMask) {
+			for(char i=0;i<width;i++) {
+				if(byteColls & rowCollTabMask) charDataTabIdx++;
+				rowCollTabMask >>= 1;
+				if(!rowCollTabMask) {
+					rowCollTabMask = 128;
+					byteColls = pgm_read_byte(rowCollTabIdx);
+					rowCollTabIdx++;
+				}
+			}
+		}
+		rowTabMask >>= 1;
+		if(!rowTabMask) {
+			rowTabMask = 128;
+			byteRows = pgm_read_byte(rowTabIdx);
+			rowTabIdx++;
+		}
+	}
+	if(size > 1) size /= 4;
+	unsigned char *dataBuf = new uint8_t[height*width];
+	memset(dataBuf,0,height*width);
+	char line = 0;
+	for(char j=0;j<height;j++) { // read data
+		if(byteRows & rowTabMask) {
+			for(char i=0;i<width;i++) {
+				if(byteColls & rowCollTabMask) { dataBuf[j*width+i] = pgm_read_byte(charDataTabIdx); charDataTabIdx++; }
+				rowCollTabMask >>= 1;
+				if(!rowCollTabMask) {
+					rowCollTabMask = 128;
+					byteColls = pgm_read_byte(rowCollTabIdx);
+					rowCollTabIdx++;
+				}
+			}
+		}
+		rowTabMask >>= 1;
+		if(!rowTabMask) {
+			rowTabMask = 128;
+			byteRows = pgm_read_byte(rowTabIdx);
+			rowTabIdx++;
+	}
+	}
+	for(char j=0;j<height-1;j++) { // unxor data
+		for(char i=0;i<width;i++) {
+			if(j) dataBuf[j*width+i] ^= dataBuf[j*width+i-width];
+		}
+	}
+	char skipLeft = 0, realWidth = width*8-1;
+	if(m_tiny) {
+		unsigned char a[3];
+		memset(a,0,3);
+		for(char j=0;j<height-1;j++) { // or data
+			for(char i=0;i<3;i++) {
+				a[i] |= dataBuf[j*3+i];
+			}
+		}
+		while(!(a[(skipLeft>>3)] & (128>>(skipLeft&7))))  skipLeft++;
+		while(!(a[(realWidth>>3)] & (128>>(realWidth&7))))  realWidth--;
+		cursor_x += realWidth - skipLeft + 4;
+
+		unsigned char *rowPtr = dataBuf;
+		skipLeft--;
+		if(skipLeft > 0) for(char j=0;j<height;j++) { // or data
+			for(char i=0;i<width-(j==height-1);i++) {
+				*rowPtr++ <<= skipLeft;
+				*(rowPtr-1) |= *rowPtr>>(8-skipLeft);
+			}
+		}
+	}
+	drawBitmap(x,y,dataBuf,width*8,height,color,bg);
+	delete dataBuf;
+}
