@@ -670,7 +670,7 @@ void _ILI9340::write(uint8_t c) {
   } else {
 	charWidth = cursor_x;
     drawChar(cursor_x + corner_x, cursor_y + corner_y, c, textcolor, textbgcolor, textsize);
-	if(!m_tiny) {
+	if(!m_proportional) {
 		cursor_x += textsize*6;
 		if(!textsize) cursor_x += 6;
 	} else charWidth = cursor_x - charWidth;
@@ -679,7 +679,7 @@ void _ILI9340::write(uint8_t c) {
       cursor_x = 0;
     }
   }
-	if(!m_tiny)
+	if(!m_proportional)
 		return 1;
 	else return charWidth;
 }
@@ -700,7 +700,7 @@ void _ILI9340::drawChar(int16_t x, int16_t y, unsigned char c,
 	unsigned char chars = pgm_read_byte(begin+2), width = pgm_read_byte(begin+3), height = pgm_read_byte(begin+4);
 	if(c==255) {
 		fillRect(x, y, width*8, height, bg);
-		if(m_tiny) cursor_x += width*8*5/8;
+		if(m_proportional) cursor_x += width*8*5/8;
 		return;
 	}
 	const unsigned char* rowTabIdx = begin + 5;
@@ -755,22 +755,23 @@ void _ILI9340::drawChar(int16_t x, int16_t y, unsigned char c,
 			rowTabIdx++;
 	}
 	}
-	for(char j=0;j<height-1;j++) { // unxor data
+	for(char j=1;j<height;j++) { // unxor data
 		for(char i=0;i<width;i++) {
-			if(j) dataBuf[j*width+i] ^= dataBuf[j*width+i-width];
+			dataBuf[j*width+i] ^= dataBuf[(j-1)*width+i];
 		}
 	}
 	char skipLeft = 0, realWidth = width*8-1;
-	if(m_tiny) {
-		unsigned char a[3];
-		memset(a,0,3);
+	if(m_proportional) {
+		unsigned char *rowOr = new uint8_t[width];
+		memset(rowOr, 0, width);
 		for(char j=0;j<height-1;j++) { // or data
-			for(char i=0;i<3;i++) {
-				a[i] |= dataBuf[j*3+i];
+			for(char i=0;i<width;i++) {
+				rowOr[i] |= dataBuf[j*3+i];
 			}
 		}
-		while(!(a[(skipLeft>>3)] & (128>>(skipLeft&7))))  skipLeft++;
-		while(!(a[(realWidth>>3)] & (128>>(realWidth&7))))  realWidth--;
+		while((skipLeft < realWidth) && !(rowOr[(skipLeft>>3)] & (128>>(skipLeft&7))))  skipLeft++;
+		while(!(rowOr[(realWidth>>3)] & (128>>(realWidth&7))))  realWidth--;
+		delete[] rowOr;
 		cursor_x += realWidth - skipLeft + 4;
 
 		unsigned char *rowPtr = dataBuf;
