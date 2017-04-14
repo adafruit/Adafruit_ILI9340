@@ -753,13 +753,32 @@ void _ILI9340::drawChar(int16_t x, int16_t y, unsigned char c,
 			rowTabMask = 128;
 			byteRows = pgm_read_byte(rowTabIdx);
 			rowTabIdx++;
-	}
-	}
-	for(char j=1;j<height;j++) { // unxor data
-		for(char i=0;i<width;i++) {
-			dataBuf[j*width+i] ^= dataBuf[(j-1)*width+i];
 		}
 	}
+	unsigned int b;
+	for(char j=0;j<height;j++) { // unxor data
+		b=0; // optional row XOR >> 1 decoding
+		for(char i=0;i<width;i++) {
+			if(b&1) b = 128; else b = 0;
+			b ^= dataBuf[j*width+i];
+			// 7 76 65 54 43 32 21 10 ... 07
+			//    7 76 65 54 43 32 21 ... 07
+			// 7  6 75 64 53 42 31 20
+			b ^= (b >> 1);
+			// 7  6 75 64 53 42 31 20
+			//      7  6  75 64 53 42
+			// 7  6  5  4 73 62 51 40
+			b ^= (b >> 2);
+			// 7  6  5  4 73 62 51 40
+			//            7  6  5  4
+			// 7  6  5  4  3  2  1  0 ...  0^07=7
+			b ^= (b >> 4);
+			dataBuf[j*width+i] = b;
+		} // optional row XOR >> 1 decoding
+		if(j) for(char i=0;i<width;i++) {
+				dataBuf[j*width+i] ^= dataBuf[(j-1)*width+i];
+		}
+	} // unxor data
 	char skipLeft = 0, realWidth = width*8-1;
 	if(m_proportional) {
 		unsigned char *rowOr = new uint8_t[width];
