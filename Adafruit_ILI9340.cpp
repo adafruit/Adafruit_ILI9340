@@ -657,9 +657,9 @@ uint8_t Adafruit_ILI9340::spiread(void) {
  */
 
 #if ARDUINO < 100
-size_t _ILI9340::write(uint8_t c) {
+size_t Adafruit_ILI9340::write(uint8_t c) {
 #else
-void _ILI9340::write(uint8_t c) {
+void Adafruit_ILI9340::write(uint8_t c) {
 #endif
 	int charWidth;
   if (c == '\n') {
@@ -686,7 +686,7 @@ void _ILI9340::write(uint8_t c) {
 
 // draw a character
 #include "glcdfont.c"
-void _ILI9340::drawChar(int16_t x, int16_t y, unsigned char c,
+void Adafruit_ILI9340::drawChar(int16_t x, int16_t y, unsigned char c,
 			    uint16_t color, uint16_t bg, uint8_t size) {
 
   if((x >= _width)            || // Clip right
