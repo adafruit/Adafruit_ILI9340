@@ -478,36 +478,41 @@ void Adafruit_ILI9340::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
 void Adafruit_ILI9340::drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h,
 			      uint16_t color, uint16_t bgcolor) {
 
+  // fillRect copy, except sending color/bgcolor B/W bitmapdata
+  // bitmap read as bit stream - no byte align @ row level !
   // rudimentary clipping (drawChar w/big text requires this)
   if((x >= _width) || (y >= _height)) return;
-  if((x + w - 1) >= _width)  w = _width  - x;
-  if((y + h - 1) >= _height) h = _height - y;
+  int16_t h2 = h, w2 = w; // start with requested size
+  if((x + w - 1) >= _width)  w2 = _width  - x;
+  if((y + h - 1) >= _height) h2 = _height - y;
 
-  setAddrWindow(x, y, x+w-1, y+h-1);
+  setAddrWindow(x, y, x+w2-1, y+h2-1); // smaller window
 
   uint8_t hi = color >> 8, lo = color;
-  uint8_t hiBg = bgcolor >> 8, loBg = bgcolor;
+  uint8_t hiBg = bgcolor >> 8, loBg = bgcolor; // prepare also background color
 
   SET_BIT(dcport, dcpinmask);
   //digitalWrite(_dc, HIGH);
   CLEAR_BIT(csport, cspinmask);
   //digitalWrite(_cs, LOW);
 
-  int16_t i, j, byteWidth = (w + 7) / 8;
+  int16_t i, j;
 
   unsigned char mask = 128;
   char oneB = *(bitmap++);
   for(j=0; j<h; j++) {
 	for(i=0; i<w; i++ ) {
-		if(oneB & mask) {
-			spiwrite(hi);
-			spiwrite(lo);
-		} else {
-			spiwrite(hiBg);
-			spiwrite(loBg);
+		if((j<h2) && (i<w2)) { // draw only when inside bitmap && screen
+			if(oneB & mask) { // foreground
+				spiwrite(hi);
+				spiwrite(lo);
+			} else { // background
+				spiwrite(hiBg);
+				spiwrite(loBg);
+			}
 		}
 		mask >>= 1;
-		if(!mask) {
+		if(!mask) { // bits sent - take next byte
 			mask = 128;
 			oneB = *(bitmap++);
 		}
