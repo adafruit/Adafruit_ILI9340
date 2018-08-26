@@ -475,18 +475,18 @@ void Adafruit_ILI9340::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
   SET_BIT(csport, cspinmask);
 }
 
-void Adafruit_ILI9340::drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h,
+void Adafruit_ILI9340::drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t wReal, int16_t h,
 			      uint16_t color, uint16_t bgcolor) {
 
   // fillRect copy, except sending color/bgcolor B/W bitmapdata
   // bitmap read as bit stream - no byte align @ row level !
   // rudimentary clipping (drawChar w/big text requires this)
   if((x >= _width) || (y >= _height)) return;
-  int16_t h2 = h, w2 = w; // start with requested size
-  if((x + w - 1) >= _width)  w2 = _width  - x;
+  int16_t h2 = h; // start with requested size
+  if((x + w - 1) >= _width)  wReal = _width  - x;
   if((y + h - 1) >= _height) h2 = _height - y;
 
-  setAddrWindow(x, y, x+w2-1, y+h2-1); // smaller window
+  setAddrWindow(x, y, x+wReal-1, y+h2-1); // smaller window
 
   uint8_t hi = color >> 8, lo = color;
   uint8_t hiBg = bgcolor >> 8, loBg = bgcolor; // prepare also background color
@@ -502,7 +502,7 @@ void Adafruit_ILI9340::drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, i
   char oneB = *(bitmap++);
   for(j=0; j<h; j++) {
 	for(i=0; i<w; i++ ) {
-		if((j<h2) && (i<w2)) { // draw only when inside bitmap && screen
+		if((j<h2) && (i<=wReal)) { // draw only when inside bitmap && screen
 			if(oneB & mask) { // foreground
 				spiwrite(hi);
 				spiwrite(lo);
@@ -788,25 +788,30 @@ void Adafruit_ILI9340::drawChar(int16_t x, int16_t y, unsigned char c,
 	if(m_proportional) {
 		unsigned char *rowOr = new uint8_t[width];
 		memset(rowOr, 0, width);
-		for(char j=0;j<height-1;j++) { // or data
+		for(char j=0;j<height;j++) { // or data
 			for(char i=0;i<width;i++) {
-				rowOr[i] |= dataBuf[j*3+i];
+				rowOr[i] |= dataBuf[j*width+i];
 			}
 		}
 		while((skipLeft < realWidth) && !(rowOr[(skipLeft>>3)] & (128>>(skipLeft&7))))  skipLeft++;
-		while(!(rowOr[(realWidth>>3)] & (128>>(realWidth&7))))  realWidth--;
-		delete[] rowOr;
-		cursor_x += realWidth - skipLeft + 4;
-
-		unsigned char *rowPtr = dataBuf;
-		skipLeft--;
-		if(skipLeft > 0) for(char j=0;j<height;j++) { // or data
-			for(char i=0;i<width-(j==height-1);i++) {
-				*rowPtr++ <<= skipLeft;
-				*(rowPtr-1) |= *rowPtr>>(8-skipLeft);
+		uint16_t overFlow = 0;
+		if(skipLeft) {
+			if(skipLeft > 7) skipLeft = 8;
+			for(char j=0;j<height;j++) {
+				for(char i=width-1;i > -1;i--) {
+					overFlow >>= 8;
+					overFlow = (dataBuf[j*width+i] << skipLeft) | overFlow;
+					dataBuf[j*width+i] = (overFlow & 255);
+				}
+				overFlow = 0;
 			}
 		}
+		while(!(rowOr[(realWidth>>3)] & (128>>(realWidth&7))))  realWidth--;
+		delete[] rowOr;
+		cursor_x += realWidth - skipLeft + 3;
+
+		unsigned char *rowPtr = dataBuf;
 	}
-	drawBitmap(x,y,dataBuf,width*8,height,color,bg);
-	delete dataBuf;
+	drawBitmap(x,y,dataBuf,width<<3,realWidth,height,color,bg);
+	delete[] dataBuf;
 }
