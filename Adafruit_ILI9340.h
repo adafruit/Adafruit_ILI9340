@@ -137,7 +137,7 @@ class Adafruit_ILI9340 : public Adafruit_GFX {
            drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color),
            fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
              uint16_t color),
-           drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h,
+           drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t wReal, int16_t h,
 	     uint16_t color, uint16_t bgcolor),
            setRotation(uint8_t r),
            invertDisplay(boolean i);
