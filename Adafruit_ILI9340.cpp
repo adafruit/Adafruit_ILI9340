@@ -36,7 +36,7 @@
   #define SET_BIT(port, bitMask) *(port) |= (bitMask)
   #define CLEAR_BIT(port, bitMask) *(port) &= ~(bitMask)
 #endif
-#if (defined(__arm__) && defined(CORE_TEENSY)) || defined(ESP8266)
+#if (defined(__arm__) && defined(CORE_TEENSY)) || defined(ESP8266) || defined(__SAMD21G18A__) 
   #define USE_SPI_LIBRARY
   #define SET_BIT(port, bitMask) digitalWrite(*(port), HIGH);
   #define CLEAR_BIT(port, bitMask) digitalWrite(*(port), LOW);
@@ -171,7 +171,7 @@ void Adafruit_ILI9340::begin(void) {
   csport    = digitalPinToPort(_cs);
   dcport    = digitalPinToPort(_dc);
 #endif
-#if (defined(__arm__) && defined(CORE_TEENSY)) || defined(ESP8266)
+#if (defined(__arm__) && defined(CORE_TEENSY)) || defined(ESP8266) || defined(__SAMD21G18A__) 
   mosiport = &_mosi;
   clkport = &_sclk;
   rsport = &_rst;
